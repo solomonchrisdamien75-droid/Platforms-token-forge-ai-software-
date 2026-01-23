@@ -16,3 +16,4 @@ yarn-error.log*
 *~
 .pem
 secret-key.json
+backend-wallet.json

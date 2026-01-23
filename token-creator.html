@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Creator Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .success {
+            color: #28a745;
+            border: 2px solid #28a745;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .error {
+            color: #dc3545;
+            border: 2px solid #dc3545;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .info {
+            background: #e7f3ff;
+            border: 2px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 5px;
+            color: #004085;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .explorer-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 15px;
+            background: #17a2b8;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .explorer-link:hover {
+            background: #138496;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Solana Token Creator</h1>
+        
+        <form id="tokenForm">
+            <div class="form-group">
+                <label for="name">Token Name</label>
+                <input type="text" id="name" name="name" value="My Dev Token" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="symbol">Symbol</label>
+                <input type="text" id="symbol" name="symbol" value="DEVT" maxlength="10" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="decimals">Decimals</label>
+                <input type="number" id="decimals" name="decimals" value="6" min="0" max="18" required>
+            </div>
+            
+            <button type="submit" id="submitBtn">Create Token</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Creating your token... This may take a minute.</p>
+        </div>
+
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('tokenForm');
+        const result = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const symbol = document.getElementById('symbol').value;
+            const decimals = parseInt(document.getElementById('decimals').value);
+
+            // Show loading, hide result
+            loading.style.display = 'block';
+            result.classList.remove('show');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/tokens/create-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name,
+                        symbol,
+                        decimals,
+                        revokeAuthorities: true
+                    })
+                });
+
+                const data = await response.json();
+
+                loading.style.display = 'none';
+                result.classList.add('show');
+
+                if (response.ok && data.success) {
+                    let html = '<div class="success">✅ Token Created Successfully!</div>';
+                    html += '<div class="info">';
+                    html += `<p><strong>Token Mint:</strong> <code>${data.tokenMint}</code></p>`;
+                    html += `<p><strong>Transaction ID:</strong> <code>${data.transaction || 'N/A'}</code></p>`;
+                    html += `<p><strong>Name:</strong> ${data.metadata?.name || name}</p>`;
+                    html += `<p><strong>Symbol:</strong> ${data.metadata?.symbol || symbol}</p>`;
+                    html += `<p><strong>Decimals:</strong> ${data.metadata?.decimals || decimals}</p>`;
+                    html += '</div>';
+                    
+                    if (data.tokenMint) {
+                        const explorerUrl = `https://explorer.solana.com/address/${data.tokenMint}?cluster=devnet`;
+                        html += `<a href="${explorerUrl}" target="_blank" class="explorer-link">View on Solana Explorer →</a>`;
+                    }
+                    
+                    html += '<h3>Full Response:</h3>';
+                    html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+                    result.innerHTML = html;
+                } else {
+                    let html = '<div class="error">❌ Token Creation Failed</div>';
+                    html += '<div class="info">';
+                    html += `<p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>`;
+                    html += `<p><strong>Message:</strong> ${data.message || 'No additional information'}</p>`;
+                    
+                    if (data.code) {
+                        html += `<p><strong>Error Code:</strong> ${data.code}</p>`;
+                    }
+                    
+                    html += '</div>';
+                    html += '<h3>Full Response:</h3>';
+                    html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+                    result.innerHTML = html;
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                result.classList.add('show');
+                result.innerHTML = `
+                    <div class="error">❌ Network Error</div>
+                    <div class="info">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>Make sure the backend is running on http://localhost:3000</p>
+                    </div>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

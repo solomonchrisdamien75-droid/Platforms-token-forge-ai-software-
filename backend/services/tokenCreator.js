@@ -29,15 +29,23 @@ export const createToken = async (tokenData) => {
       revokeAuthorities = true,
     } = tokenData;
 
-    // Get backend payer (should be imported from .env)
-    const backendPublicKeyStr = config.backendPublicKey;
-    if (!backendPublicKeyStr) {
+    // Check if backend wallet exists
+    if (!config.backendWallet) {
       throw new Error(
-        'BACKEND_PUBLIC_KEY not set in environment. Please run: npm run generate-wallet'
+        config.walletError || 'Backend wallet not found. Please run: npm run generate-wallet'
       );
     }
 
-    const payerPublicKey = new PublicKey(backendPublicKeyStr);
+    // Get backend wallet keypair from file
+    const secretKeyBase64 = config.backendWallet.secretKey;
+    const secretKeyBuffer = Buffer.from(secretKeyBase64, 'base64');
+    const payerKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyBuffer));
+    const payerPublicKey = payerKeypair.publicKey;
+
+    // Verify public key matches env
+    if (config.backendPublicKey && payerPublicKey.toBase58() !== config.backendPublicKey) {
+      console.warn('⚠️  Backend public key mismatch. Using wallet file key.');
+    }
 
     // Create mint keypair
     const mintKeypair = Keypair.generate();
@@ -89,17 +97,17 @@ export const createToken = async (tokenData) => {
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = payerPublicKey;
 
-    // Note: In production, you'd sign with backend wallet from stored keypair
-    // For now, we return transaction details for frontend signing
-    const serialized = transaction.serialize({
-      requireAllSignatures: false,
-      verifySignatures: false,
-    });
+    // Sign and send transaction
+    const signature = await sendAndConfirmTransaction(
+      connection,
+      transaction,
+      [payerKeypair, mintKeypair]
+    );
 
     return {
       success: true,
       mintAddress: mintPublicKey.toBase58(),
-      transaction: serialized.toString('base64'),
+      signature: signature,
       message: `Token created: ${symbol} (${name})`,
       authoritiesRevoked: revokeAuthorities,
     };
